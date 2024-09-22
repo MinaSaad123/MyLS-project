@@ -67,12 +67,3 @@ This command will:
 For a detailed video explanation and demo of the **MyLS** project, watch the following YouTube video:
 
 [![MyLS Project Demo](https://img.youtube.com/vi/DbQ2LE1ykxo/0.jpg)](https://youtu.be/DbQ2LE1ykxo?si=95Gl7z3YxIoJRpgV)
-```
-
-### Breakdown:
-1. **Supported Options**: A detailed explanation of each supported option.
-2. **Project Features**: A description of key functionalities.
-3. **Usage**: A sample command to demonstrate the usage of options.
-4. **Embedded YouTube Video**: Clicking the video thumbnail will open the video on YouTube.
-
-This Markdown should render properly in most markdown viewers or platforms. Let me know if you need any modifications!
