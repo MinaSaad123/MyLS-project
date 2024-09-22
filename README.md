@@ -1,9 +1,5 @@
 # MyLS Project Overview
 
-## Project Name
-**MyLS**
-# MyLS Project
-
 ## Overview
 **MyLS** is a custom implementation of the Linux `ls` command that lists directory contents. This project extends the basic functionality of `ls` by supporting a range of options including `-latucifd1`. These options allow the user to control the display of files in various formats, order, and additional details.
 
@@ -66,4 +62,4 @@ This command will:
 ## Project Demo
 For a detailed video explanation and demo of the **MyLS** project, watch the following YouTube video:
 
-[![MyLS Project Demo](https://img.youtube.com/vi/DbQ2LE1ykxo/0.jpg)](https://youtu.be/DbQ2LE1ykxo?si=95Gl7z3YxIoJRpgV)
+[![Video Title](https://img.youtube.com/vi/DbQ2LE1ykxo/0.jpg)](https://youtu.be/DbQ2LE1ykxo?si=_IPjGkuhV1NhxX7Y)
