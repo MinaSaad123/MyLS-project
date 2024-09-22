@@ -62,4 +62,4 @@ This command will:
 ## Project Demo
 For a detailed video explanation and demo of the **MyLS** project, watch the following YouTube video:
 
-[![Watch the Video](http://img.youtube.com/vi/DbQ2LE1ykxo/0.jpg)](http://www.youtube.com/watch?v=DbQ2LE1ykxo)
+[Screencast from 22 سبت, 2024 EEST 11:49:00 م.webm](https://github.com/user-attachments/assets/9646f6b2-abb5-4145-af8a-94b75773e576)
