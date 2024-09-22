@@ -58,16 +58,54 @@ struct S_MyLSFunctionality G_MyLSFunctionality = {0, 0, 0, 0, 0};
 struct dirent *entry[150];
 char *Parr[10] = {0}; /*it is not mandatory to use dynamic allocation*/ 
 int ArgNum = 0;
-int ArgLocator = 0;
+int ArgLocator = 0, Indicator = 0;
 int iterateNum = 0;
 int NumOfEntries = 0;
 int EntriesLocator = 0;
+char arr[BUFFER_MAX];
 long long total = 0;
 //=========================================================================
 
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
 /*                            Services function                          */
 /*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*=*/
+static char* ReturnFileType(int FileMode)
+{
+   if ((FileMode &  0170000) == 0010000) 
+   {
+        return "Named Pipe";
+
+   } else if ((FileMode &  0170000) == 0020000) 
+   {
+        return "Character Special file";
+
+   } else if ((FileMode &  0170000) == 0040000) 
+   {
+        return "Directory";
+
+   } else if ((FileMode &  0170000) == 0060000) 
+   {
+        return "Block Special file";
+
+   } else if ((FileMode &  0170000) == 0100000) 
+   {
+        return "Regular file";
+
+   } else if ((FileMode &  0170000) == 0120000) 
+   {
+        return "Symbolic Link";
+
+   } else if ((FileMode &  0170000) == 0140000) 
+   {
+        return "Socket";
+
+   } else
+   {
+        return "Unknwon mode";
+   }
+
+}
+
 static char* get_User(int UID)
 {
     struct passwd * pwd = getpwuid(UID);
@@ -82,43 +120,62 @@ static char* get_Group(int GID)
    return grp->gr_name;
 }
 
-static char * print_permission(char *permission)
+static char * return_permission(int mode, char* permission)
 {
     struct stat fileState;
     char path[250];
-    int mode = 0, i = 0;
+    int i = 0;
 
-    snprintf(path, sizeof(path), "%s/%s", Parr[ArgLocator], entry[EntriesLocator]->d_name);
+   if ((mode &  0170000) == 0010000) 
+   {
+        permission[0] = 'p';
 
-    if ( lstat(path, &fileState) == -1)
-    {
-        perror("lstat");
-        exit(EXIT_FAILURE);
-    }
+   } else if ((mode &  0170000) == 0020000) 
+   {
+        permission[0] = 'c';
 
-    mode =  fileState.st_mode;
+   } else if ((mode &  0170000) == 0040000) 
+   {
+        permission[0] = 'd';
+
+   } else if ((mode &  0170000) == 0060000) 
+   {
+        permission[0] = 'b';
+
+   } else if ((mode &  0170000) == 0100000) 
+   {
+        permission[0] = '-';
+
+   } else if ((mode &  0170000) == 0120000) 
+   {
+        permission[0] = 'l';
+
+   } else if ((mode &  0170000) == 0140000) 
+   {
+        permission[0] = 's';
+   }
 
     //owner  permissions
-    if((mode & 0000400) == 0000400) permission[0] = 'r';
-    if((mode & 0000200) == 0000200) permission[1] = 'w';
-    if((mode & 0000100) == 0000100) permission[2] = 'x';
+    if((mode & 0000400) == 0000400) permission[1] = 'r';
+    if((mode & 0000200) == 0000200) permission[2] = 'w';
+    if((mode & 0000100) == 0000100) permission[3] = 'x';
     
     //group permissions
-    if((mode & 0000040) == 0000040) permission[3] = 'r';
-    if((mode & 0000020) == 0000020) permission[4] = 'w';
-    if((mode & 0000010) == 0000010) permission[5] = 'x';
+    if((mode & 0000040) == 0000040) permission[4] = 'r';
+    if((mode & 0000020) == 0000020) permission[5] = 'w';
+    if((mode & 0000010) == 0000010) permission[6] = 'x';
     
     //others  permissions
-    if((mode & 0000004) == 0000004) permission[6] = 'r';
-    if((mode & 0000002) == 0000002) permission[7] = 'w';
-    if((mode & 0000001) == 0000001) permission[8] = 'x';
+    if((mode & 0000004) == 0000004) permission[7] = 'r';
+    if((mode & 0000002) == 0000002) permission[8] = 'w';
+    if((mode & 0000001) == 0000001) permission[9] = 'x';
     
     //special  permissions
-    if((mode & 0004000) == 0004000) permission[2] = 's';
-    if((mode & 0002000) == 0002000) permission[5] = 's';
-    if((mode & 0001000) == 0001000) permission[8] = 't';
+    if((mode & 0004000) == 0004000) permission[3] = 's';
+    if((mode & 0002000) == 0002000) permission[6] = 's';
+    if((mode & 0001000) == 0001000) permission[9] = 't';
 
-    while ( i < 9 )
+    while ( i < 10 )
     {
         if ( permission[i] == 0 )
         {
@@ -131,17 +188,49 @@ static char * print_permission(char *permission)
     return &permission[0];
 }
 
-static void Comparing_FUNC(struct dirent *entry1, struct dirent *entry2)
+static int Comparing_FUNC(void *ptr1, void *ptr2)
 {
     struct stat file_stat1;
     struct stat file_stat2;
+    struct dirent *entry1 = *(unsigned long*)ptr1;
+    struct dirent *entry2 = *(unsigned long*)ptr2;
     char path1[250];
     char path2[250];
 
 
     if (G_MyLSFunctionality.SortType == AlphaBetaSorting )
     {
-        return tolower(entry1->d_name[0]) > tolower(entry2->d_name[0]) ? -1 : tolower(entry1->d_name[0]) < tolower(entry2->d_name[0]) ? 1 : 0;
+        if ( strcmp(".", entry1->d_name) == 0 )
+        {
+            return -1;
+
+        } else if ( strcmp(".", entry2->d_name) == 0 ) 
+        {
+            return 1;
+
+        } else if ( strcmp("..", entry1->d_name) == 0 )
+        {
+            return -1;
+
+        } else if ( strcmp("..", entry2->d_name) == 0 )
+        {
+            return 1;
+        }
+
+        if ( entry1->d_name[0] == '.' && entry2->d_name[0] == '.' )
+        {
+            return tolower(entry1->d_name[1]) > tolower(entry2->d_name[1]) ? 1 : tolower(entry1->d_name[1]) < tolower(entry2->d_name[1]) ? -1 : 0;
+        
+        } else if ( entry1->d_name[0] == '.' )
+        {
+            return tolower(entry1->d_name[1]) > tolower(entry2->d_name[0]) ? 1 : tolower(entry1->d_name[1]) < tolower(entry2->d_name[0]) ? -1 : 0;
+
+        } else if ( entry2->d_name[0] == '.' )
+        {
+            return tolower(entry1->d_name[0]) > tolower(entry2->d_name[1]) ? 1 : tolower(entry1->d_name[0]) < tolower(entry2->d_name[1]) ? -1 : 0;
+        }
+
+        return tolower(entry1->d_name[0]) > tolower(entry2->d_name[0]) ? 1 : tolower(entry1->d_name[0]) < tolower(entry2->d_name[0]) ? -1 : 0;
     } 
     
     snprintf(path1, sizeof(path1), "%s/%s", Parr[ArgLocator], entry1->d_name);
@@ -178,90 +267,173 @@ static void store_entries()
     DIR *dp;
     char path[250];
     struct stat file_stat;
+    struct dirent *Temp;
 
-    NumOfEntries = 0;
-    dp = opendir(Parr[iterateNum]);
+    dp = opendir(Parr[ArgLocator]);
 
     if ( G_MyLSFunctionality.AdditionalFiles == ShowDotFilesEnable )
     {
-        while ( ( entry[NumOfEntries] = readdir(dp) ) != NULL )
+        while ( ( Temp = readdir(dp) ) != NULL )
         {
-            if ( strcmp(".", entry[NumOfEntries]->d_name) || strcmp("..", entry[NumOfEntries]->d_name) )
+            if (G_MyLSFunctionality.formatType == LongFormat)
             {
-                snprintf(path, sizeof(path), "%s/%s", Parr[EntriesLocator], entry[NumOfEntries]->d_name);
+                entry[NumOfEntries] = (struct dirent *)malloc(sizeof(struct dirent));
 
-                if ( lstat(path, &file_stat) == -1 )
+                memcpy(entry[NumOfEntries], Temp, sizeof(struct dirent));
+
+                if ( strcmp(".", entry[NumOfEntries]->d_name) || strcmp("..", entry[NumOfEntries]->d_name) )
                 {
-                    perror("lstat:");
-                    exit(EXIT_FAILURE);
+                    snprintf(path, sizeof(path), "%s/%s", Parr[ArgLocator], entry[NumOfEntries]->d_name);
+
+                    if ( lstat(path, &file_stat) == -1 )
+                    {
+                        perror("lstat:");
+                        exit(EXIT_FAILURE);
+                    }   
+
+                    total += file_stat.st_blocks;
                 }
-
-                total += file_stat.st_blocks;
+                            
+                ++NumOfEntries;
             }
-
-            ++NumOfEntries;
         }
     
+    } else if (G_MyLSFunctionality.ShowDirectoryOnly == ListDirectoryOnly)
+    {
+        while ( ( Temp = readdir(dp) ) != NULL )
+        {
+            if (strcmp( Temp->d_name, ".") == 0 )
+            {
+                entry[NumOfEntries] = (struct dirent *)malloc(sizeof(struct dirent));
+                
+                memcpy(entry[NumOfEntries], Temp, sizeof(struct dirent));
+
+                ++NumOfEntries;
+            }
+        }
+        
     } else
     {
-        while ( ( entry[NumOfEntries] = readdir(dp) ) != NULL )
+        while ( ( Temp = readdir(dp) ) != NULL )
         {
-            if ( entry[NumOfEntries]->d_name[0] != '.' )
+            if (Temp->d_name[0] != '.')
             {
-                entry[NumOfEntries] = NULL;
+                entry[NumOfEntries] = (struct dirent *)malloc(sizeof(struct dirent));
+                
+                memcpy(entry[NumOfEntries], Temp, sizeof(struct dirent));
 
-            } else
-            {
+                if (G_MyLSFunctionality.formatType == LongFormat)
+                {
+                    snprintf(path, sizeof(path), "%s/%s", Parr[ArgLocator], entry[NumOfEntries]->d_name);
+
+                    if ( lstat(path, &file_stat) == -1 )
+                    {
+                        perror("lstat:");
+                        exit(EXIT_FAILURE);
+                    }   
+
+                    total += file_stat.st_blocks;
+                }
+
                 ++NumOfEntries;
             }
         }
     }
-
     closedir(dp);
 }
 
-static void SortEntries()
+static void print_AnotherFormat()
 {
-    qsort(entry, NumOfEntries, sizeof(entry), Comparing_FUNC);
-}
+    struct stat fileState;
+    char path[250];
+    char *TypeOfFile = NULL;
 
-static void print_OrdinaryFormat()
-{
+    while (EntriesLocator < NumOfEntries)
+    {
+        snprintf(path, sizeof(path), "%s/%s", Parr[ArgLocator], entry[EntriesLocator]->d_name);
 
-}
-static void print_OneEntryPerLine()
-{
-    // if ( G_MyLSFunctionality.ShowInode == EnableInode )
-    // {
-    //     char *Format1 = "";
+        if ( lstat(path, &fileState) == -1)
+        {
+            perror("lstat");
+            exit(EXIT_FAILURE);
+        }
 
+        //Figure out file type
+        TypeOfFile = ReturnFileType(fileState.st_mode);
 
-    // } else
-    // {
-    //     char *Format2 = "";
-    // }
+        if ( ( G_MyLSFunctionality.formatType == OrdinaryFormat && strcmp(TypeOfFile, "Symbolic Link") ) || G_MyLSFunctionality.formatType == OneEntryPerLine )
+        {
+            if ( G_MyLSFunctionality.ShowInode == EnableInode )
+            {
+                printf("%-7lu ", fileState.st_ino);
+            }
+
+            if ( strcmp(TypeOfFile, "Symbolic Link") == 0 )
+            {
+                printf("%s%-18s\033[0m", CYAN, entry[EntriesLocator]->d_name );
+  
+            } else if ( strcmp(TypeOfFile, "Directory") == 0 )
+            {
+                printf("%s%-18s\033[0m", BLUE, entry[EntriesLocator]->d_name );
+
+            } else if ( fileState.st_mode & 0b1)
+            {
+                printf("%s%-18s\033[0m", GREEN, entry[EntriesLocator]->d_name );
+
+            } else
+            {
+                printf("%-18s", entry[EntriesLocator]->d_name);
+            }
+
+            if ( G_MyLSFunctionality.formatType == OneEntryPerLine )
+            {
+                printf("\n");
+            }
+        }
+        
+        ++EntriesLocator;
+    }
+
+    if ( ArgLocator < ( ArgNum - 1 ) || ArgNum == 1 )
+    {
+        printf("\n");
+        EntriesLocator = 0;
+        NumOfEntries = 0;
+        total = 0;
+    }
 }
 
 static void print_LongFormat()
 {
-    char *permission[15] = {NULL};
+    char permission[20] = {0};
     char *Timestring = NULL;
     char *TypeOfFile = NULL;
-    char Text_Buffer[500];
+    char Text_Buffer[1000];
     struct stat fileState;
     char path[250];
     int mode = 0, i = 0;
     char buff[100];
-
-    //Will print the directory text or not, depend on there is multidirectories or not
-    if ( ArgNum != 1 ) 
-    {
-        printf("%s:\n", Parr[ArgLocator]);
-    }
+    int len = 0;
 
     //print total
-    printf("%lu\n", total);
+    if (total)
+    {
+        //Will print the directory text or not, depend on there is multidirectories or not
+        if ( ArgNum != 1 ) 
+        {
+            if (Indicator)
+            {
+                printf(".:\n");
 
+                Indicator = 0;
+
+            } else
+            {
+                printf("%s:\n", Parr[ArgLocator]);
+            }
+        }
+        printf("total %lu\n", total / 2);
+    }
 
     while ( EntriesLocator < NumOfEntries )
     {
@@ -274,17 +446,17 @@ static void print_LongFormat()
         }
 
         //adjust time before printing
-        Timestring = ctime(fileState.st_mtime);
+        Timestring = ctime(&(fileState.st_mtime));
         Timestring[strlen(Timestring) - 1] = '\0';
 
         //Figure out file type
-        TypeOfFile = (fileState.st_mode);
+        TypeOfFile = ReturnFileType(fileState.st_mode);
 
         if ( G_MyLSFunctionality.ShowInode == EnableInode )
         {
-            snprintf(Text_Buffer, 500, "%15lu %15s %3d %10s %10s %10lu %25s ", 
+            snprintf(Text_Buffer, 1000, "%-7lu %s %3d %9s %8s %5lu %20s ", 
                     fileState.st_ino,
-                    print_permission(permission),
+                    return_permission(fileState.st_mode, permission),
                     fileState.st_nlink,
                     get_User(fileState.st_uid),
                     get_Group(fileState.st_gid),
@@ -292,8 +464,8 @@ static void print_LongFormat()
                     Timestring);
         } else
         {
-            snprintf(Text_Buffer, 500, "%15s %3d %10s %10s %10lu %25s ", 
-                    print_permission(permission),
+            snprintf(Text_Buffer, 1000, "%s %3d %9s %8s %5lu %20s ", 
+                    return_permission(fileState.st_mode, permission),
                     fileState.st_nlink,
                     get_User(fileState.st_uid),
                     get_Group(fileState.st_gid),
@@ -307,13 +479,19 @@ static void print_LongFormat()
 
         } else if ( strcmp(TypeOfFile, "Symbolic Link") == 0 )
         {
-            if ( (readlink(path, buff, sizeof(buff) - 1) ) == -1 )
+            if ( (len = readlink(path, buff, sizeof(buff) - 1) ) == -1 )
             {
                 perror("readlink");
                 exit(EXIT_FAILURE);
             }
 
-            printf("%s%s%s%s\033[0m -> %s%s\033[0m\n", Text_Buffer, CYAN, entry[EntriesLocator]->d_name, BLUE, buff);
+            buff[len] = '\0';
+
+            printf("%s%s%s\033[0m -> %s%s\033[0m\n", Text_Buffer, CYAN, entry[EntriesLocator]->d_name, BLUE, buff);
+
+        } else if ( fileState.st_mode & 0b1)
+        {
+            printf("%s%s%s\033[0m\n", Text_Buffer, GREEN , entry[EntriesLocator]->d_name);
 
         } else
         {
@@ -321,10 +499,17 @@ static void print_LongFormat()
         }
 
         ++EntriesLocator;
+
+        memset(permission, 0, sizeof(permission));
     }
 
-    EntriesLocator = 0;
-    total = 0;
+    if ( ArgLocator < ArgNum - 1 )
+    {
+        printf("\n");
+        EntriesLocator = 0;
+        NumOfEntries = 0;
+        total = 0;
+    }
 }
 
 //=========================================================================
@@ -342,7 +527,7 @@ void SetMyLSFeature(char option)
     {
         G_MyLSFunctionality.SortType = AccessTimeSorting;
 
-        } else if ( option == 'c' )
+    } else if ( option == 'c' )
     {
         G_MyLSFunctionality.SortType = ChangeTimeSorting;
 
@@ -350,7 +535,7 @@ void SetMyLSFeature(char option)
     {
         G_MyLSFunctionality.SortType = DirectoryOrderSorting;
 
-        G_MyLSFunctionality.ShowDirectoryOnly = ShowDotFilesEnable;
+        G_MyLSFunctionality.AdditionalFiles = ShowDotFilesEnable;
 
     } else if ( option == '1' )
     {
@@ -369,7 +554,7 @@ void SetMyLSFeature(char option)
 
     } else if ( option == 'a' )
     {
-        G_MyLSFunctionality.ShowDirectoryOnly = ShowDotFilesEnable;
+        G_MyLSFunctionality.AdditionalFiles = ShowDotFilesEnable;
 
     } else if ( option == 'd' )
     {
@@ -379,10 +564,7 @@ void SetMyLSFeature(char option)
 
 void MyLS_Core()
 {
-    char arr[BUFFER_MAX];
-    int flag = 0;
-
-    if ( ArgNum == 0 )
+    if ( ArgNum == 0 || strcmp(Parr[0], ".") == 0 ) /*i will handle case there is just one .*/
     {
         if ( getcwd(arr, BUFFER_MAX) == -1 )
         {
@@ -391,47 +573,37 @@ void MyLS_Core()
         }
 
         Parr[0] = arr;
+        ++Indicator;
 
-        if ( G_MyLSFunctionality.formatType != LongFormat )
+        if ( ArgNum == 0 )
         {
-            G_MyLSFunctionality.formatType = OneEntryPerLine;
+            ++ArgNum;
         }
-
-        ++ArgNum;
-        ++flag;
     }
 
     while ( ArgLocator < ArgNum )
     {
         //1. store entries in array.
-        if ( G_MyLSFunctionality.ShowDirectoryOnly != ListDirectoryOnly )
-        {
-            store_entries();
-        }
+        store_entries();
 
         //2. sort entries
         if ( G_MyLSFunctionality.SortType != DirectoryOrderSorting )
         {
-            SortEntries();
+            qsort(entry, NumOfEntries, sizeof(struct dirent *), Comparing_FUNC);
+        }
+
+        if ( G_MyLSFunctionality.formatType == LongFormat )
+        {
+            //Printing start node (if any), permission for user, group and owner, owner username, group username, size, time and file name
+            print_LongFormat();
+
+        } else if ( G_MyLSFunctionality.formatType == OrdinaryFormat || G_MyLSFunctionality.formatType == OneEntryPerLine )
+        {
+            //printing Ordinary format
+            print_AnotherFormat();
         }
 
         ++ArgLocator;
-    }
-
-    if ( G_MyLSFunctionality.formatType == LongFormat )
-    {
-        //Printing start node (if any), permission for user, group and owner, owner username, group username, size, time and file name
-        print_LongFormat();
-
-    } else if ( G_MyLSFunctionality.formatType == print_OrdinaryFormat )
-    {
-        //printing Ordinary format
-        print_OrdinaryFormat();
-
-    } else if ( G_MyLSFunctionality.formatType == OneEntryPerLine )
-    {
-        //printing OneEntryPerLine format
-        print_OneEntryPerLine();
     }
 }
 //===============================================================================================================================
